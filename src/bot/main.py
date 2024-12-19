@@ -3,6 +3,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters
 from src.agent.main import ExpenseTrackingAgent
 from src.sheets.client import SheetsClient
 from src.config import TELEGRAM_TOKEN, GOOGLE_SHEETS_ID
+from langchain_community.chat_models import ChatOpenAI
 
 class ExpenseBot:
     def __init__(self):
