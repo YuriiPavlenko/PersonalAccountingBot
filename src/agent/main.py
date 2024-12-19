@@ -57,4 +57,4 @@ class ExpenseTrackingAgent:
 
     async def process_message(self, message):
         self.logger.info(f"Processing message: {message}")
-        return await self.agent_executor.arun(message)
+        return await self.agent_executor.ainvoke(message)
