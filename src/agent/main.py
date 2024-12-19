@@ -16,15 +16,24 @@ class ExpenseTrackingAgent:
             ("assistant", "{agent_scratchpad}")  # Добавляем agent_scratchpad
         ])
         
+        # Определяем инструменты как список объектов
+        tools = [
+            {
+                "func": self.sheets_client.append_expense,
+                "description": "Добавляет расход в таблицу",
+                "name": "append_expense"
+            }
+        ]
+        
         self.agent = create_openai_functions_agent(
             llm=self.llm,
             prompt=prompt,
-            tools=[self.sheets_client.append_expense]
+            tools=tools
         )
         
         self.agent_executor = AgentExecutor(
             agent=self.agent,
-            tools=[self.sheets_client.append_expense],
+            tools=tools,
             verbose=True
         )
 
