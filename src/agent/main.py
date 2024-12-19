@@ -52,9 +52,11 @@ class ExpenseTrackingAgent:
         self.agent_executor = AgentExecutor(
             agent=self.agent,
             tools=tools,
+            input_keys=["input"],  # Specify the input key
+            output_keys=["output"],  # Specify the output key
             verbose=True
         )
 
     async def process_message(self, message):
         self.logger.info(f"Processing message: {message}")
-        return await self.agent_executor.ainvoke(message)
+        return await self.agent_executor.ainvoke({"input": message})
