@@ -1,18 +1,19 @@
 import json
-import os
-from google.oauth2 import service_account
+from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from src.config import GOOGLE_CREDENTIALS
 
 class SheetsClient:
     def __init__(self, spreadsheet_id):
         self.spreadsheet_id = spreadsheet_id
-        credentials_info = json.loads(GOOGLE_CREDENTIALS)
-        credentials = service_account.Credentials.from_service_account_info(
-            credentials_info,
+        self.service = self.get_sheets_service()
+    
+    def get_sheets_service(self):
+        creds = Credentials.from_service_account_info(
+            json.loads(GOOGLE_CREDENTIALS),
             scopes=['https://www.googleapis.com/auth/spreadsheets']
         )
-        self.service = build('sheets', 'v4', credentials=credentials)
+        return build('sheets', 'v4', credentials=creds, cache_discovery=False)
     
     def append_expense(self, date, category, amount, description):
         values = [[date, category, amount, description]]
