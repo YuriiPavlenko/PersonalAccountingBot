@@ -1,3 +1,4 @@
+import logging
 from pydantic import BaseModel
 from langchain_openai import ChatOpenAI
 from langchain.agents import AgentExecutor, create_openai_functions_agent
@@ -14,7 +15,11 @@ class AppendExpenseSchema(BaseModel):
 
 class ExpenseTrackingAgent:
     def __init__(self, sheets_client):
+        self.logger = logging.getLogger(__name__)
+        self.logger.info("Initializing ChatOpenAI...")
         self.llm = ChatOpenAI()
+        
+        self.logger.info("Setting up SheetsClient...")
         self.sheets_client = sheets_client
         
         system_prompt = """You are a helpful assistant that helps families track their expenses.
@@ -26,7 +31,7 @@ class ExpenseTrackingAgent:
             ("assistant", "{agent_scratchpad}")
         ])
         
-        # Создаем инструмент с помощью StructuredTool
+        self.logger.info("Creating append_expense tool...")
         append_expense_tool = StructuredTool(
             name="append_expense",
             description="Добавляет расход в таблицу",
@@ -36,12 +41,14 @@ class ExpenseTrackingAgent:
         
         tools = [append_expense_tool]
         
+        self.logger.info("Creating OpenAI functions agent...")
         self.agent = create_openai_functions_agent(
             llm=self.llm,
             prompt=prompt,
             tools=tools
         )
         
+        self.logger.info("Creating AgentExecutor...")
         self.agent_executor = AgentExecutor(
             agent=self.agent,
             tools=tools,
@@ -49,4 +56,5 @@ class ExpenseTrackingAgent:
         )
 
     async def process_message(self, message):
+        self.logger.info(f"Processing message: {message}")
         return await self.agent_executor.arun(message)
