@@ -12,7 +12,8 @@ class ExpenseTrackingAgent:
         
         prompt = ChatPromptTemplate.from_messages([
             ("system", system_prompt),
-            ("user", "{input}")
+            ("user", "{input}"),
+            ("assistant", "{agent_scratchpad}")  # Добавляем agent_scratchpad
         ])
         
         self.agent = create_openai_functions_agent(
