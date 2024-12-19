@@ -1,7 +1,16 @@
+from pydantic import BaseModel
 from langchain_openai import ChatOpenAI
 from langchain.agents import AgentExecutor, create_openai_functions_agent
 from langchain.prompts import ChatPromptTemplate
 from langchain.tools import StructuredTool
+
+class AppendExpenseSchema(BaseModel):
+    date: str
+    description: str
+    amount: float
+    currency: str
+    cash: bool
+    user: str
 
 class ExpenseTrackingAgent:
     def __init__(self, sheets_client):
@@ -21,7 +30,8 @@ class ExpenseTrackingAgent:
         append_expense_tool = StructuredTool(
             name="append_expense",
             description="Добавляет расход в таблицу",
-            func=self.sheets_client.append_expense
+            func=self.sheets_client.append_expense,
+            args_schema=AppendExpenseSchema
         )
         
         tools = [append_expense_tool]
