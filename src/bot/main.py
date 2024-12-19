@@ -23,7 +23,7 @@ class ExpenseBot:
     async def start_command(self, update: Update, context):
         self.logger.info("Received /start command")
         await update.message.reply_text(
-            "Привет! Я помогу вам отслеживать расходы. Просто отправьте мне информацию о расходе."
+            "Hello! I will help you track your expenses. Just send me the expense information."
         )
 
     async def handle_message(self, update: Update, context):

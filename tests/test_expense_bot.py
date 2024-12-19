@@ -21,7 +21,7 @@ async def test_start_command(expense_bot):
     context = MagicMock()
     await expense_bot.start_command(update, context)
     update.message.reply_text.assert_called_once_with(
-        "Привет! Я помогу вам отслеживать расходы. Просто отправьте мне информацию о расходе."
+        "Hello! I will help you track your expenses. Just send me the expense information."
     )
 
 @pytest.mark.asyncio

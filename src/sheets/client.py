@@ -1,5 +1,4 @@
 import json
-import os
 import logging
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -35,13 +34,13 @@ class SheetsClient:
         self.logger.info("Google Sheets service initialized.")
         return build('sheets', 'v4', credentials=creds, cache_discovery=False)
     
-    def append_expense(self, date, category, amount, description):
-        self.logger.info(f"Appending expense: {date}, {category}, {amount}, {description}")
-        values = [[date, category, amount, description]]
+    def append_expense(self, date, description, amount, currency, cash=False, user='default_user'):
+        self.logger.info(f"Appending expense: {date}, {description}, {amount}, {currency}, {cash}, {user}")
+        values = [[date, description, amount, currency, cash, user]]
         body = {'values': values}
         self.service.spreadsheets().values().append(
             spreadsheetId=self.spreadsheet_id,
-            range='Expenses!A:D',
+            range='Expenses!A:F',
             valueInputOption='USER_ENTERED',
             body=body
         ).execute()
