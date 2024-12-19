@@ -38,7 +38,7 @@ class SheetsClient:
         self.logger.info(f"Appending expense: {date}, {description}, {amount}, {currency}, {cash}, {user}")
         values = [[date, description, amount, currency, cash, user]]
         body = {'values': values}
-        range_name = 'Expenses!A1:F1'  # Ensure the range is correctly formatted
+        range_name = 'Actual!A:F'  # Ensure the range is correctly formatted
         self.service.spreadsheets().values().append(
             spreadsheetId=self.spreadsheet_id,
             range=range_name,
