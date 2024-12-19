@@ -24,8 +24,8 @@ class ExpenseTrackingAgent:
         self.logger.info("Setting up SheetsClient...")
         self.sheets_client = sheets_client
         
-        system_prompt = """You are a helpful assistant that helps a family to track their expenses.
-        Help them categorize expenses and maintain their budget."""
+        system_prompt = """You are a helpful assistant that reads and writes to a google sheets table, which represents a simple accounting system for a family.
+        Help them log expenses and maintain their budget. When processing an expense, format it clearly and ask for confirmation before writing to the sheet."""
         
         prompt = ChatPromptTemplate.from_messages([
             ("system", system_prompt),
@@ -68,9 +68,68 @@ class ExpenseTrackingAgent:
         )
 
     async def process_message(self, message):
-        self.logger.info(f"Processing message: {message}")
-        return await self.agent_executor.ainvoke({"input": message})
+        self.logger.info(f"Processing new message: {message}")
+        try:
+            result = await self.agent_executor.ainvoke({"input": message})
+            self.logger.info(f"Agent processed message successfully: {result}")
+            
+            if result:
+                summary = self.format_expense_summary(result)
+                self.logger.info(f"Formatted expense summary: {summary}")
+                return {
+                    "data": result,
+                    "summary": summary
+                }
+            else:
+                self.logger.warning("Agent returned no result")
+                return None
+        except Exception as e:
+            self.logger.error(f"Error processing message: {str(e)}")
+            raise
+
+    async def process_correction(self, previous_expense, correction):
+        self.logger.info(f"Processing correction. Previous expense: {previous_expense}")
+        self.logger.info(f"Correction text: {correction}")
+        
+        try:
+            result = await self.agent_executor.ainvoke({
+                "input": f"Previous expense: {previous_expense['summary']}\nCorrection: {correction}"
+            })
+            self.logger.info(f"Agent processed correction successfully: {result}")
+            
+            if result:
+                summary = self.format_expense_summary(result)
+                self.logger.info(f"Formatted corrected expense summary: {summary}")
+                return {
+                    "data": result,
+                    "summary": summary
+                }
+            else:
+                self.logger.warning("Agent returned no result for correction")
+                return None
+        except Exception as e:
+            self.logger.error(f"Error processing correction: {str(e)}")
+            raise
+
+    async def write_expense(self, expense_data):
+        self.logger.info(f"Writing expense to sheet: {expense_data}")
+        try:
+            await self.sheets_client.append_expense(**expense_data["data"])
+            self.logger.info("Successfully wrote expense to sheet")
+        except Exception as e:
+            self.logger.error(f"Failed to write expense to sheet: {str(e)}")
+            raise
+
+    def format_expense_summary(self, expense_data):
+        return f"""
+📅 Date: {expense_data['date']}
+💰 Amount: {expense_data['amount']} {expense_data['currency']}
+📝 Description: {expense_data['description']}
+💳 Payment: {'Cash' if expense_data['cash'] else 'Card'}
+👤 User: {expense_data['user']}
+"""
 
     def get_current_time(self):
+        self.logger.info(f"Agent fetches current time.")
         tz = pytz.timezone('Asia/Bangkok')
         return datetime.now(tz).isoformat()

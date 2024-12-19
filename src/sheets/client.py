@@ -34,15 +34,19 @@ class SheetsClient:
         self.logger.info("Google Sheets service initialized.")
         return build('sheets', 'v4', credentials=creds, cache_discovery=False)
     
-    def append_expense(self, date, description, amount, currency, cash=False, user='default_user'):
+    async def append_expense(self, date, description, amount, currency, cash=False, user='default_user'):
         self.logger.info(f"Appending expense: {date}, {description}, {amount}, {currency}, {cash}, {user}")
         values = [[date, description, amount, currency, cash, user]]
         body = {'values': values}
-        range_name = 'Actual!A:F'  # Ensure the range is correctly formatted
-        self.service.spreadsheets().values().append(
-            spreadsheetId=self.spreadsheet_id,
-            range=range_name,
-            valueInputOption='USER_ENTERED',
-            body=body
-        ).execute()
-        self.logger.info("Expense appended successfully.")
+        range_name = 'Actual!A:F'
+        try:
+            await self.service.spreadsheets().values().append(
+                spreadsheetId=self.spreadsheet_id,
+                range=range_name,
+                valueInputOption='USER_ENTERED',
+                body=body
+            ).execute()
+            self.logger.info("Expense appended successfully.")
+        except Exception as e:
+            self.logger.error(f"Failed to append expense: {str(e)}")
+            raise
