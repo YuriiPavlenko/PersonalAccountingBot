@@ -1,6 +1,8 @@
 python-telegram-bot
 langchain
 langchain-community
+langchain-openai
+openai
 langgraph
 google-auth
 google-auth-oauthlib
