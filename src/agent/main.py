@@ -1,6 +1,7 @@
 from langchain_openai import ChatOpenAI
 from langchain.agents import AgentExecutor, create_openai_functions_agent
 from langchain.prompts import ChatPromptTemplate
+from langchain.tools import StructuredTool
 
 class ExpenseTrackingAgent:
     def __init__(self, sheets_client):
@@ -13,17 +14,17 @@ class ExpenseTrackingAgent:
         prompt = ChatPromptTemplate.from_messages([
             ("system", system_prompt),
             ("user", "{input}"),
-            ("assistant", "{agent_scratchpad}")  # Добавляем agent_scratchpad
+            ("assistant", "{agent_scratchpad}")
         ])
         
-        # Определяем инструменты как список объектов
-        tools = [
-            {
-                "func": self.sheets_client.append_expense,
-                "description": "Добавляет расход в таблицу",
-                "name": "append_expense"
-            }
-        ]
+        # Создаем инструмент с помощью StructuredTool
+        append_expense_tool = StructuredTool(
+            name="append_expense",
+            description="Добавляет расход в таблицу",
+            func=self.sheets_client.append_expense
+        )
+        
+        tools = [append_expense_tool]
         
         self.agent = create_openai_functions_agent(
             llm=self.llm,
