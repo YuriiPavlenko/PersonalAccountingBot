@@ -24,8 +24,12 @@ class ExpenseTrackingAgent:
         self.logger.info("Setting up SheetsClient...")
         self.sheets_client = sheets_client
         
-        system_prompt = """You are a helpful assistant that reads and writes to a google sheets table, which represents a simple accounting system for a family.
-        Help them log expenses and maintain their budget. When processing an expense, format it clearly and ask for confirmation before writing to the sheet."""
+        system_prompt = """You are a helpful assistant that reads and writes to a google sheets table.
+        For each expense entry, you should:
+        1. Extract the expense information
+        2. Format it for confirmation
+        3. Wait for user approval before writing to the sheet
+        """
         
         prompt = ChatPromptTemplate.from_messages([
             ("system", system_prompt),
@@ -33,11 +37,23 @@ class ExpenseTrackingAgent:
             ("assistant", "{agent_scratchpad}")
         ])
         
+        # Create a sync version of append_expense for the agent to use
+        def sync_append_expense(*args, **kwargs):
+            # Instead of actually appending, just return the formatted data
+            return {
+                "date": kwargs.get('date'),
+                "description": kwargs.get('description'),
+                "amount": kwargs.get('amount'),
+                "currency": kwargs.get('currency'),
+                "cash": kwargs.get('cash', False),
+                "user": kwargs.get('user', 'default_user')
+            }
+        
         self.logger.info("Creating append_expense tool...")
         append_expense_tool = StructuredTool(
             name="append_expense",
-            description="Adds an expense to the sheet",
-            func=self.sheets_client.append_expense,
+            description="Formats an expense entry for confirmation",
+            func=sync_append_expense,
             args_schema=AppendExpenseSchema
         )
         
@@ -70,38 +86,17 @@ class ExpenseTrackingAgent:
     async def process_message(self, message):
         self.logger.info(f"Processing new message: {message}")
         try:
-            system_message = """You are a helpful assistant that helps track family expenses. 
-            For each expense entry, return a JSON object with these fields:
-            - date (YYYY-MM-DD)
-            - description (string)
-            - amount (number)
-            - currency (string)
-            - cash (boolean)
-            - user (string)
-            """
-
-            # Create the prompt template
-            prompt = ChatPromptTemplate.from_messages([
-                ("system", system_message),
-                ("user", "{input}"),
-                ("assistant", "{agent_scratchpad}")
-            ])
-
-            # Format the prompt with the actual values
-            formatted_messages = prompt.format_messages(
-                input=message,
-                agent_scratchpad="" # Initial empty scratchpad
-            )
-
-            # Then use the formatted messages with the agent executor
-            result = await self.agent_executor.ainvoke({"input": formatted_messages})
+            result = await self.agent_executor.ainvoke({"input": message})
             self.logger.info(f"Agent processed message successfully: {result}")
             
             if result and "output" in result:
-                # The LLM's output should already be in the correct format
+                # Format the data for confirmation
                 expense_data = result["output"]
-                self.logger.info(f"Extracted expense data: {expense_data}")
-                return expense_data
+                summary = self.format_expense_summary(expense_data)
+                return {
+                    "data": expense_data,
+                    "summary": summary
+                }
             else:
                 self.logger.warning("Agent returned no result")
                 return None
@@ -136,6 +131,7 @@ class ExpenseTrackingAgent:
             raise
 
     async def write_expense(self, expense_data):
+        """Actually write the expense to the sheet after confirmation"""
         self.logger.info(f"Writing expense to sheet: {expense_data}")
         try:
             await self.sheets_client.append_expense(**expense_data["data"])
