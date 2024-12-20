@@ -89,16 +89,22 @@ class ExpenseTrackingAgent:
 
     async def _parse_expense(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Parse expense information from user input"""
-        with self.tracer.start_span("parse_expense") as span:
+        # Use the LangSmith run tracking instead of spans
+        with self.tracer.start_run(
+            run_type="llm",
+            name="parse_expense"
+        ) as run:
             prompt = ChatPromptTemplate.from_messages([
                 ("system", "Extract expense information from the user message. Return a JSON object with date, description, amount, currency, cash (boolean), and user fields."),
                 ("user", "{input}")
             ])
             
             chain = prompt | self.llm
-            span.log({"input": state["message"]})
+            # Log the input
+            run.update(inputs={"message": state["message"]})
             result = await chain.ainvoke({"input": state["message"]})
-            span.log({"output": result})
+            # Log the output
+            run.update(outputs={"result": result})
             return {"expense_data": result}
 
     async def _format_for_confirmation(self, state: Dict[str, Any]) -> Dict[str, Any]:
