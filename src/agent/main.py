@@ -105,24 +105,26 @@ class ExpenseTrackingAgent:
             ("user", "{input}")
         ])
         
-        # Create and trace the chain
+        # Create chain with tracing
         chain = prompt | self.llm
         
-        # Execute the chain with tracing
-        with self.langsmith_client.trace(
-            project_name="expense_tracking",
-            name="parse_expense"
-        ) as tracer:
-            try:
-                result = await chain.ainvoke(
-                    {"input": state["message"]},
-                    config={"callbacks": [tracer]}
-                )
-                self.logger.info(f"Successfully parsed expense data: {result}")
-                return {"expense_data": result}
-            except Exception as e:
-                self.logger.error(f"Failed to parse expense: {str(e)}")
-                raise
+        try:
+            # Execute the chain with callbacks
+            result = await chain.ainvoke(
+                {"input": state["message"]},
+                config={
+                    "callbacks": [self.tracer],
+                    "metadata": {
+                        "project": "expense_tracking",
+                        "run_name": "parse_expense"
+                    }
+                }
+            )
+            self.logger.info(f"Successfully parsed expense data: {result}")
+            return {"expense_data": result}
+        except Exception as e:
+            self.logger.error(f"Failed to parse expense: {str(e)}")
+            raise
 
     async def _format_for_confirmation(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Format expense for user confirmation"""
