@@ -89,23 +89,40 @@ class ExpenseTrackingAgent:
 
     async def _parse_expense(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Parse expense information from user input"""
-        # Use the LangSmith run tracking instead of spans
-        with self.tracer.start_run(
-            run_type="llm",
-            name="parse_expense"
-        ) as run:
-            prompt = ChatPromptTemplate.from_messages([
-                ("system", "Extract expense information from the user message. Return a JSON object with date, description, amount, currency, cash (boolean), and user fields."),
-                ("user", "{input}")
-            ])
+        self.logger.info("Parsing expense from user input")
+        
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", """Extract expense information from the user message and return a structured JSON object with these exact fields:
+            - date (YYYY-MM-DD)
+            - description (string)
+            - amount (number)
+            - currency (string, e.g. THB)
+            - cash (boolean)
+            - user (string)
             
-            chain = prompt | self.llm
-            # Log the input
-            run.update(inputs={"message": state["message"]})
-            result = await chain.ainvoke({"input": state["message"]})
-            # Log the output
-            run.update(outputs={"result": result})
-            return {"expense_data": result}
+            For dates mentioned relatively (like "yesterday" or "three days ago"), calculate the actual date.
+            """),
+            ("user", "{input}")
+        ])
+        
+        # Create and trace the chain
+        chain = prompt | self.llm
+        
+        # Execute the chain with tracing
+        with self.langsmith_client.trace(
+            project_name="expense_tracking",
+            name="parse_expense"
+        ) as tracer:
+            try:
+                result = await chain.ainvoke(
+                    {"input": state["message"]},
+                    config={"callbacks": [tracer]}
+                )
+                self.logger.info(f"Successfully parsed expense data: {result}")
+                return {"expense_data": result}
+            except Exception as e:
+                self.logger.error(f"Failed to parse expense: {str(e)}")
+                raise
 
     async def _format_for_confirmation(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Format expense for user confirmation"""
