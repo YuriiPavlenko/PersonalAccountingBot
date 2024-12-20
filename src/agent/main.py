@@ -2,7 +2,7 @@ import logging
 import pytz
 import os
 from datetime import datetime
-from typing import TypeVar, List, Union, Dict, Any
+from typing import TypeVar, List, Union, Dict, Any, Optional
 from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, END
 from langchain.tools import StructuredTool
@@ -11,6 +11,7 @@ from langsmith import Client
 from langchain_core.tracers import LangChainTracer
 from src.schemas import ExpenseSchema
 from pydantic import BaseModel
+from typing_extensions import Annotated
 
 # Define state types
 S = TypeVar("S", bound=Dict[str, Any])
@@ -18,6 +19,13 @@ S = TypeVar("S", bound=Dict[str, Any])
 class GetTimeToolSchema(BaseModel):
     """Schema for get_current_time tool that takes no arguments"""
     pass
+
+# Define state schema
+class ExpenseState(BaseModel):
+    message: str
+    expense_data: Optional[Dict[str, Any]] = None
+    formatted_expense: Optional[str] = None
+    status: Optional[str] = None
 
 class ExpenseTrackingAgent:
     def __init__(self, sheets_client):
@@ -59,8 +67,8 @@ class ExpenseTrackingAgent:
 
     def _create_workflow(self) -> StateGraph:
         """Create the workflow graph"""
-        # Create the graph
-        workflow = StateGraph(S)
+        # Create the graph with proper state schema
+        workflow = StateGraph(ExpenseState)
 
         # Add nodes
         workflow.add_node("parse_expense", self._parse_expense)
