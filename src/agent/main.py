@@ -187,9 +187,11 @@ class ExpenseTrackingAgent:
             # Only parse and format, don't write
             result = await self.workflow.ainvoke({"message": message})
             self.logger.info(f"Workflow completed with result: {result}")
+            
+            # Since result is a dict, access it directly
             return {
-                "data": result.expense_data,
-                "summary": result.formatted_expense
+                "data": result["expense_data"],
+                "summary": result["formatted_expense"]
             }
         except Exception as e:
             self.logger.error(f"Error processing message: {str(e)}")
