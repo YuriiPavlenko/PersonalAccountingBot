@@ -1,6 +1,7 @@
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters
+from telegram.error import Conflict
 from src.agent.main import ExpenseTrackingAgent
 from src.sheets.client import SheetsClient
 from src.config import TELEGRAM_TOKEN, GOOGLE_SHEETS_ID
@@ -17,9 +18,13 @@ class ExpenseBot:
         self.logger.info("Setting up Telegram bot...")
         self.app = Application.builder().token(TELEGRAM_TOKEN).build()
         
+        # Add handlers
         self.app.add_handler(CommandHandler("start", self.start_command))
         self.app.add_handler(MessageHandler(filters.TEXT, self.handle_message))
         self.app.add_handler(CallbackQueryHandler(self.handle_button))
+        
+        # Add error handler
+        self.app.add_error_handler(self.error_handler)
         
         # Store pending expenses
         self.pending_expenses = {}
@@ -98,7 +103,28 @@ class ExpenseBot:
                 "Please tell me what needs to be corrected, and I'll adjust the entry."
             )
 
+    async def error_handler(self, update: Update, context):
+        """Handle errors caused by updates."""
+        self.logger.error(f"Update {update} caused error {context.error}")
+        
+        if isinstance(context.error, Conflict):
+            self.logger.error("Bot instance conflict detected. Another instance is already running.")
+            # You might want to exit the application here
+            import sys
+            sys.exit(1)
+        else:
+            # Handle other errors
+            if update and update.effective_message:
+                await update.effective_message.reply_text(
+                    "Sorry, something went wrong. Please try again later."
+                )
+
     def run(self):
+        """Run the bot."""
         self.logger.info("Starting bot polling...")
-        self.app.run_polling()
+        try:
+            self.app.run_polling()
+        except Exception as e:
+            self.logger.error(f"Error running bot: {e}")
+            raise
 
