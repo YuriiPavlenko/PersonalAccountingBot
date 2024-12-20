@@ -70,17 +70,38 @@ class ExpenseTrackingAgent:
     async def process_message(self, message):
         self.logger.info(f"Processing new message: {message}")
         try:
-            result = await self.agent_executor.ainvoke({"input": message})
+            system_message = """You are a helpful assistant that helps track family expenses. 
+            For each expense entry, return a JSON object with these fields:
+            - date (YYYY-MM-DD)
+            - description (string)
+            - amount (number)
+            - currency (string)
+            - cash (boolean)
+            - user (string)
+            """
+
+            # Create the prompt template
+            prompt = ChatPromptTemplate.from_messages([
+                ("system", system_message),
+                ("user", "{input}"),
+                ("assistant", "{agent_scratchpad}")
+            ])
+
+            # Format the prompt with the actual values
+            formatted_messages = prompt.format_messages(
+                input=message,
+                agent_scratchpad="" # Initial empty scratchpad
+            )
+
+            # Then use the formatted messages with the agent executor
+            result = await self.agent_executor.ainvoke({"input": formatted_messages})
             self.logger.info(f"Agent processed message successfully: {result}")
             
             if result and "output" in result:
-                expense_data = self.parse_expense_data(result["output"])
-                summary = self.format_expense_summary(expense_data)
-                self.logger.info(f"Formatted expense summary: {summary}")
-                return {
-                    "data": expense_data,
-                    "summary": summary
-                }
+                # The LLM's output should already be in the correct format
+                expense_data = result["output"]
+                self.logger.info(f"Extracted expense data: {expense_data}")
+                return expense_data
             else:
                 self.logger.warning("Agent returned no result")
                 return None
@@ -99,7 +120,8 @@ class ExpenseTrackingAgent:
             self.logger.info(f"Agent processed correction successfully: {result}")
             
             if result and "output" in result:
-                expense_data = self.parse_expense_data(result["output"])
+                # Use the LLM's output directly
+                expense_data = result["output"]
                 summary = self.format_expense_summary(expense_data)
                 self.logger.info(f"Formatted corrected expense summary: {summary}")
                 return {
