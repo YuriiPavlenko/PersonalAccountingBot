@@ -75,14 +75,10 @@ class ExpenseTrackingAgent:
         # Add nodes
         workflow.add_node("parse_expense", self._parse_expense)
         workflow.add_node("format_for_confirmation", self._format_for_confirmation)
-        workflow.add_node("await_confirmation", self._await_confirmation)
-        workflow.add_node("write_to_sheet", self._write_to_sheet)
 
-        # Add edges
+        # Add edges - Remove the automatic flow to write_to_sheet
         workflow.add_edge("parse_expense", "format_for_confirmation")
-        workflow.add_edge("format_for_confirmation", "await_confirmation")
-        workflow.add_edge("await_confirmation", "write_to_sheet")
-        workflow.add_edge("write_to_sheet", END)
+        workflow.add_edge("format_for_confirmation", END)  # End after formatting
 
         # Set entry point
         workflow.set_entry_point("parse_expense")
@@ -188,11 +184,12 @@ class ExpenseTrackingAgent:
         """Process a new expense message"""
         self.logger.info(f"Processing message: {message}")
         try:
+            # Only parse and format, don't write
             result = await self.workflow.ainvoke({"message": message})
             self.logger.info(f"Workflow completed with result: {result}")
             return {
-                "data": result["expense_data"],
-                "summary": result["formatted_expense"]
+                "data": result.expense_data,
+                "summary": result.formatted_expense
             }
         except Exception as e:
             self.logger.error(f"Error processing message: {str(e)}")
@@ -202,6 +199,7 @@ class ExpenseTrackingAgent:
         """Write a confirmed expense to the sheet"""
         self.logger.info(f"Writing expense to sheet: {expense_data}")
         try:
+            # Write to sheet only when explicitly called after confirmation
             await self.sheets_client.append_expense(**expense_data["data"])
             self.logger.info("Successfully wrote expense to sheet")
         except Exception as e:
