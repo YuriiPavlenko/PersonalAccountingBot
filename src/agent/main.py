@@ -87,7 +87,7 @@ class ExpenseTrackingAgent:
 
         return workflow.compile()
 
-    async def _parse_expense(self, state: Dict[str, Any]) -> Dict[str, Any]:
+    async def _parse_expense(self, state: ExpenseState) -> ExpenseState:
         """Parse expense information from user input"""
         self.logger.info("Parsing expense from user input")
         
@@ -111,7 +111,7 @@ class ExpenseTrackingAgent:
         try:
             # Execute the chain with callbacks
             result = await chain.ainvoke(
-                {"input": state["message"]},
+                {"input": state.message},
                 config={
                     "callbacks": [self.tracer],
                     "metadata": {
@@ -121,33 +121,47 @@ class ExpenseTrackingAgent:
                 }
             )
             self.logger.info(f"Successfully parsed expense data: {result}")
-            return {"expense_data": result}
+            return ExpenseState(
+                message=state.message,
+                expense_data=result,
+                formatted_expense=state.formatted_expense,
+                status=state.status
+            )
         except Exception as e:
             self.logger.error(f"Failed to parse expense: {str(e)}")
             raise
 
-    async def _format_for_confirmation(self, state: Dict[str, Any]) -> Dict[str, Any]:
+    async def _format_for_confirmation(self, state: ExpenseState) -> ExpenseState:
         """Format expense for user confirmation"""
-        expense_data = state["expense_data"]
         formatted = f"""
 📝 Expense Details:
-📅 Date: {expense_data['date']}
-💰 Amount: {expense_data['amount']} {expense_data['currency']}
-📄 Description: {expense_data['description']}
-💳 Payment Type: {'Cash' if expense_data['cash'] else 'Card'}
-👤 User: {expense_data['user']}
+📅 Date: {state.expense_data['date']}
+💰 Amount: {state.expense_data['amount']} {state.expense_data['currency']}
+📄 Description: {state.expense_data['description']}
+💳 Payment Type: {'Cash' if state.expense_data['cash'] else 'Card'}
+👤 User: {state.expense_data['user']}
 """
-        return {**state, "formatted_expense": formatted}
+        return ExpenseState(
+            message=state.message,
+            expense_data=state.expense_data,
+            formatted_expense=formatted,
+            status=state.status
+        )
 
-    async def _await_confirmation(self, state: Dict[str, Any]) -> Dict[str, Any]:
+    async def _await_confirmation(self, state: ExpenseState) -> ExpenseState:
         """Await user confirmation"""
         # This node doesn't do anything as confirmation is handled by the bot
         return state
 
-    async def _write_to_sheet(self, state: Dict[str, Any]) -> Dict[str, Any]:
+    async def _write_to_sheet(self, state: ExpenseState) -> ExpenseState:
         """Write confirmed expense to sheet"""
-        await self.sheets_client.append_expense(**state["expense_data"])
-        return {**state, "status": "written"}
+        await self.sheets_client.append_expense(**state.expense_data)
+        return ExpenseState(
+            message=state.message,
+            expense_data=state.expense_data,
+            formatted_expense=state.formatted_expense,
+            status="written"
+        )
 
     def _format_expense(self, **kwargs) -> Dict[str, Any]:
         """Format expense data"""
