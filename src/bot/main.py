@@ -63,7 +63,7 @@ class ExpenseBot:
             
             self.logger.info(f"Sending confirmation request to chat_id {chat_id}")
             await update.message.reply_text(
-                f"I'll add this expense:\n{expense_data}\n\nIs this correct?",
+                f"I'll add this expense:\n{expense_data['summary']}\n\nIs this correct?",  # Use only the formatted summary
                 reply_markup=reply_markup
             )
         else:
