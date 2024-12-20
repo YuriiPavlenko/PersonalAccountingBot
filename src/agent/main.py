@@ -108,11 +108,9 @@ class ExpenseTrackingAgent:
             ("user", "{input}")
         ])
         
-        # Create chain with tracing
         chain = prompt | self.llm
         
         try:
-            # Execute the chain with callbacks
             result = await chain.ainvoke(
                 {"input": state.message},
                 config={
@@ -132,11 +130,13 @@ class ExpenseTrackingAgent:
             
             expense_data = json.loads(content)
             self.logger.info(f"Successfully parsed expense data: {expense_data}")
+            
+            # Only parse and format, don't write yet
             return ExpenseState(
                 message=state.message,
                 expense_data=expense_data,
-                formatted_expense=state.formatted_expense,
-                status=state.status
+                formatted_expense=None,  # Will be set in _format_for_confirmation
+                status="pending_confirmation"  # New status to indicate waiting for confirmation
             )
         except Exception as e:
             self.logger.error(f"Failed to parse expense: {str(e)}")
