@@ -73,11 +73,12 @@ class ExpenseTrackingAgent:
             result = await self.agent_executor.ainvoke({"input": message})
             self.logger.info(f"Agent processed message successfully: {result}")
             
-            if result:
-                summary = self.format_expense_summary(result)
+            if result and "output" in result:
+                expense_data = self.parse_expense_data(result["output"])
+                summary = self.format_expense_summary(expense_data)
                 self.logger.info(f"Formatted expense summary: {summary}")
                 return {
-                    "data": result,
+                    "data": expense_data,
                     "summary": summary
                 }
             else:
@@ -97,11 +98,12 @@ class ExpenseTrackingAgent:
             })
             self.logger.info(f"Agent processed correction successfully: {result}")
             
-            if result:
-                summary = self.format_expense_summary(result)
+            if result and "output" in result:
+                expense_data = self.parse_expense_data(result["output"])
+                summary = self.format_expense_summary(expense_data)
                 self.logger.info(f"Formatted corrected expense summary: {summary}")
                 return {
-                    "data": result,
+                    "data": expense_data,
                     "summary": summary
                 }
             else:
@@ -119,6 +121,52 @@ class ExpenseTrackingAgent:
         except Exception as e:
             self.logger.error(f"Failed to write expense to sheet: {str(e)}")
             raise
+
+    def parse_expense_data(self, output):
+        """Parse the LLM output to extract expense data."""
+        self.logger.info(f"Parsing expense data from output: {output}")
+        
+        # Initialize default values
+        expense_data = {
+            "date": None,
+            "description": None,
+            "amount": None,
+            "currency": None,
+            "cash": None,
+            "user": None
+        }
+        
+        try:
+            # Split output into lines and process each line
+            lines = output.lower().split('\n')
+            for line in lines:
+                if 'date:' in line:
+                    expense_data['date'] = line.split('date:')[-1].strip()
+                elif 'amount:' in line:
+                    amount_str = line.split('amount:')[-1].strip()
+                    # Extract numeric amount and currency
+                    parts = amount_str.split()
+                    if len(parts) >= 1:
+                        expense_data['amount'] = float(parts[0].replace(',', ''))
+                    if len(parts) >= 2:
+                        expense_data['currency'] = parts[1].upper()
+                elif 'description:' in line:
+                    expense_data['description'] = line.split('description:')[-1].strip()
+                elif 'payment:' in line or 'paid by:' in line:
+                    expense_data['cash'] = 'cash' in line.lower()
+                elif 'user:' in line:
+                    expense_data['user'] = line.split('user:')[-1].strip()
+
+            # Validate all required fields are present
+            if None in expense_data.values():
+                missing = [k for k, v in expense_data.items() if v is None]
+                raise ValueError(f"Missing required fields: {missing}")
+
+            return expense_data
+
+        except Exception as e:
+            self.logger.error(f"Error parsing expense data: {str(e)}")
+            raise ValueError(f"Failed to parse expense data: {str(e)}")
 
     def format_expense_summary(self, expense_data):
         return f"""
