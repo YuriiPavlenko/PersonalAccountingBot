@@ -12,6 +12,8 @@ from langchain_core.tracers import LangChainTracer
 from src.schemas import ExpenseSchema
 from pydantic import BaseModel
 from typing_extensions import Annotated
+import json
+from langchain_core.messages import AIMessage
 
 # Define state types
 S = TypeVar("S", bound=Dict[str, Any])
@@ -101,6 +103,7 @@ class ExpenseTrackingAgent:
             - user (string)
             
             For dates mentioned relatively (like "yesterday" or "three days ago"), calculate the actual date.
+            Return ONLY the JSON object, no other text.
             """),
             ("user", "{input}")
         ])
@@ -120,10 +123,18 @@ class ExpenseTrackingAgent:
                     }
                 }
             )
-            self.logger.info(f"Successfully parsed expense data: {result}")
+            
+            # Extract JSON content from AIMessage
+            if isinstance(result, AIMessage):
+                content = result.content
+            else:
+                content = result
+            
+            expense_data = json.loads(content)
+            self.logger.info(f"Successfully parsed expense data: {expense_data}")
             return ExpenseState(
                 message=state.message,
-                expense_data=result,
+                expense_data=expense_data,
                 formatted_expense=state.formatted_expense,
                 status=state.status
             )
