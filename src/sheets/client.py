@@ -35,12 +35,14 @@ class SheetsClient:
         return build('sheets', 'v4', credentials=creds, cache_discovery=False)
     
     async def append_expense(self, date, description, amount, currency, cash=False, user='default_user'):
+        """Append expense to Google Sheet"""
         self.logger.info(f"Appending expense: {date}, {description}, {amount}, {currency}, {cash}, {user}")
         values = [[date, description, amount, currency, cash, user]]
         body = {'values': values}
         range_name = 'Actual!A:F'
         try:
-            await self.service.spreadsheets().values().append(
+            # Use execute() directly since it's not an async operation
+            self.service.spreadsheets().values().append(
                 spreadsheetId=self.spreadsheet_id,
                 range=range_name,
                 valueInputOption='USER_ENTERED',
