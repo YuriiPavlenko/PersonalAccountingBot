@@ -10,9 +10,14 @@ from langchain.prompts import ChatPromptTemplate
 from langsmith import Client
 from langchain_core.tracers import LangChainTracer
 from src.schemas import ExpenseSchema
+from pydantic import BaseModel
 
 # Define state types
 S = TypeVar("S", bound=Dict[str, Any])
+
+class GetTimeToolSchema(BaseModel):
+    """Schema for get_current_time tool that takes no arguments"""
+    pass
 
 class ExpenseTrackingAgent:
     def __init__(self, sheets_client):
@@ -46,7 +51,8 @@ class ExpenseTrackingAgent:
         get_time_tool = StructuredTool(
             name="get_current_time",
             description="Returns current time in Thailand timezone",
-            func=self._get_current_time
+            func=self._get_current_time,
+            args_schema=GetTimeToolSchema  # Add args_schema even though it takes no arguments
         )
         
         return [append_expense_tool, get_time_tool]
