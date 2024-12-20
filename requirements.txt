@@ -12,3 +12,4 @@ python-dotenv
 pytest==7.4.0
 pytest-asyncio==0.20.3
 pytz
+langsmith
